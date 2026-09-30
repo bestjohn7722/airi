@@ -17,6 +17,8 @@ export interface VisionInferenceInput {
   promptOverride?: string
   /** Cancels this read when its owning chat turn ends. */
   abortSignal?: AbortSignal
+  /** Background chat supplies its character's vision selection. Other callers use the current module settings. */
+  selection?: { provider: string, model: string }
 }
 
 // TODO: this should be configurable
@@ -45,20 +47,23 @@ export function useVisionInference() {
   const lastText = ref('')
 
   async function runVisionInference(input: VisionInferenceInput) {
-    if (!activeProvider.value || !activeModel.value)
+    const providerId = input.selection?.provider ?? activeProvider.value
+    const modelId = input.selection?.model ?? activeModel.value
+    const thinking = ollamaThinkingEnabled.value
+    if (!providerId || !modelId)
       throw new Error('Vision provider/model not configured')
 
-    const provider = await providersStore.getChatProviderInstance(activeProvider.value)
+    const provider = await providersStore.getChatProviderInstance(providerId)
     const workload = getVisionWorkload(input.workloadId)
     const prompt = input.promptOverride ?? workload.prompt
     const { url } = parseDataUrl(input.imageDataUrl)
-    const visionProvider: GenerationProvider = activeProvider.value === 'vision-ollama'
+    const visionProvider: GenerationProvider = providerId === 'vision-ollama'
       ? {
           generation(model) {
             const request = provider.generation(model)
             if (request.protocol !== 'chat-completions')
               return request
-            return { ...request, config: { ...request.config, think: ollamaThinkingEnabled.value } }
+            return { ...request, config: { ...request.config, think: thinking } }
           },
         }
       : provider
@@ -76,7 +81,7 @@ export function useVisionInference() {
     }, VISION_INFERENCE_TIMEOUT_MS)
 
     try {
-      await llmStore.stream(activeModel.value, visionProvider, context, {
+      await llmStore.stream(modelId, visionProvider, context, {
         abortSignal: input.abortSignal ? AbortSignal.any([input.abortSignal, abortController.signal]) : abortController.signal,
         onStreamEvent: (event) => {
           if (event.type === 'text-delta') {

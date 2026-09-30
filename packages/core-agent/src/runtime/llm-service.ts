@@ -32,6 +32,9 @@ export async function streamFrom({
   const key = modelKey(model, request)
   const supportedTools = options?.supportsTools ?? (options?.toolsCompatibility?.get(key) !== false)
   const supportsContentArray = options?.supportsContentArray ?? (options?.contentArrayCompatibility?.get(key) !== false)
+  if (request.protocol === 'chat-completions' && !supportsContentArray && options?.prepareStringContent)
+    conversation = await options.prepareStringContent()
+  options?.abortSignal?.throwIfAborted()
   const builtinTools = supportedTools
     ? await (builtinToolsResolver?.(model, chatProvider) ?? Promise.resolve([]))
     : []

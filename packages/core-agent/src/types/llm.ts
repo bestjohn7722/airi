@@ -29,6 +29,9 @@ export type StreamEvent
 export interface StreamOptions {
   /** Provider registry identity used to isolate native continuation data. */
   providerId?: string
+  /** Media capabilities captured with the request's provider and model selection. */
+  supportsAudioInput?: boolean
+  supportsVisionInput?: boolean
   /** Called once with this turn only, after every tool step has settled. */
   onGeneratedTurn?: (turn: AssistantTurn) => void | Promise<void>
   abortSignal?: AbortSignal
@@ -76,6 +79,8 @@ export interface StreamOptions {
    */
   contentArrayCompatibility?: Map<string, boolean>
   supportsContentArray?: boolean
+  /** Media adapters can supply a text projection before a provider's string-only retry. Durable history remains unchanged. */
+  prepareStringContent?: () => Promise<Conversation>
 }
 
 export type BuiltinToolsResolver = (model: string, chatProvider: GenerationProvider) => Promise<Tool[]>

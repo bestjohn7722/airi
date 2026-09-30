@@ -73,6 +73,16 @@ describe('streamFrom tool errors', () => {
     streamTextMock.mockReset()
   })
 
+  it('uses the supplied audio transcript before a string-only provider request', async () => {
+    streamTextMock.mockReturnValueOnce(createMockStreamResult())
+    const conversation: Conversation = { turns: [{ id: 'recording', type: 'user', content: [{ type: 'audio', format: 'wav', data: 'YXVkaW8=' }] }] }
+    const project = vi.fn(async (): Promise<Conversation> => ({ turns: [{ id: 'recording', type: 'user', content: [{ type: 'text', text: 'Spoken request' }] }] }))
+    await streamFrom({ model: 'text', chatProvider: provider, conversation, options: { supportsContentArray: false, prepareStringContent: project } })
+    expect(project).toHaveBeenCalledOnce()
+    expect(streamTextMock.mock.calls[0][0].messages).toEqual([{ role: 'user', content: 'Spoken request' }])
+    expect(conversation.turns[0]).toMatchObject({ content: [{ type: 'audio', format: 'wav', data: 'YXVkaW8=' }] })
+  })
+
   it('emits the final xsAI messages after all tool rounds finish', async () => {
     const onGeneratedTurn = vi.fn()
     const finalMessages: Message[] = [
